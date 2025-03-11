@@ -1,117 +1,132 @@
-/**
- * Objetivo
-El objetivo es construir un programa en Node.js que administre notas personales utilizando el módulo `fs`. Los estudiantes practicarán leer, escribir, verificar y eliminar archivos, consolidando los conceptos aprendidos.
-
-Problema: Gestor de Notas Personales
-Hoy en día, muchas personas necesitan guardar notas rápidas o recordatorios. Crear una aplicación para gestionar estas notas en archivos puede ser una solución útil para practicar manejo de archivos y entender cómo interactuar con el sistema de archivos en Node.js. La aplicación debe permitir al usuario:
-
-Crear una nueva nota y guardarla en un archivo.
-Leer todas las notas existentes.
-Eliminar una nota específica según su título.
-
-Instrucciones para resolver el problema:
-Crea un archivo `gestorNotas.js`.
-- Usa el módulo `fs` para realizar las operaciones de manejo de archivos.
-- Las notas deben almacenarse en un archivo JSON llamado `notas.json`. Usa el formato JSON para guardar la información en el archivo.
-- Implementa la Funcionalidad del Programa descrita anteriormente:
-- Crear una nota: Agrega una nueva nota con un título y contenido.
-- Listar notas: Lee el archivo `notas.json` y muestra todas las notas en la consola.
-- Eliminar una nota: Borra una nota específica según su título.
- */
-
 const fs = require('fs');
 
-// Ruta del archivo de notas
-const filePath = './notas.json';
-
-/**
- * Agrega una nueva nota al archivo.
- * @param {string} titulo - El título de la nota.
- * @param {string} contenido - El contenido de la nota.
- */
-
-function agregarNota(titulo, contenido) 
-{
-  let notas = [];
-  if (fs.existsSync(filePath)) {
-    // PISTA: Aquí debes leer las notas existentes antes de agregar la nueva.
-    console.log(`El archivo en la ruta ${filePath} si existe`);
-    // COMPLETAR: Usa fs.readFileSync para leer el archivo.
-    fs.readFile( filePath, 'utf8', (error, datos) => {
-      if(error){
-        console.log(error);
-        console.log(datos);
+class NoteTaking {
+  constructor(filename = 'notes.json') {
+    this.filename = filename;
+    this.notes = [];
+    
+    // Create the notes file if it doesn't exist
+    try {
+      if (!fs.existsSync(this.filename)) {
+        fs.writeFileSync(this.filename, JSON.stringify([], null, 2));
+        console.log(`Created new notes file: ${this.filename}`);
+      } else {
+        // Load existing notes
+        this.loadNotes();
       }
-    } );
-  }
-  else{
-    console.log(`El archivo no existe`);
+    } catch (error) {
+      console.error('Error initializing NoteTaking:', error);
+    }
   }
 
-  const nuevaNota = { titulo, contenido };
-  notas.push(nuevaNota);
+  // Load notes from the file
+  loadNotes() {
+    try {
+      const data = fs.readFileSync(this.filename, 'utf8');
+      this.notes = JSON.parse(data);
+      console.log(`Loaded ${this.notes.length} notes from ${this.filename}`);
+    } catch (error) {
+      console.error('Error loading notes:', error);
+      this.notes = [];
+    }
+  }
 
-  // PISTA: Ahora debes sobrescribir el archivo con las notas actualizadas.
-  // COMPLETAR: Usa fs.writeFileSync para guardar las notas.
-  console.log('Nota agregada con éxito.');
+  // Save notes to the file
+  saveNotes() {
+    try {
+      fs.writeFileSync(this.filename, JSON.stringify(this.notes, null, 2));
+      console.log(`Saved ${this.notes.length} notes to ${this.filename}`);
+      return true;
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      return false;
+    }
+  }
+
+  // Add a new note
+  addNote(title, content) {
+    const newNote = {
+      id: Date.now().toString(), // Use timestamp as a simple unique ID
+      title,
+      content,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    this.notes.push(newNote);
+    this.saveNotes();
+    return newNote;
+  }
+
+  // Get all notes
+  getAllNotes() {
+    return this.notes;
+  }
+
+  // Get a specific note by ID
+  getNoteById(id) {
+    return this.notes.find(note => note.id === id) || null;
+  }
+
+  // Update an existing note
+  updateNote(id, updates) {
+    const noteIndex = this.notes.findIndex(note => note.id === id);
+    
+    if (noteIndex === -1) {
+      console.log(`Note with ID ${id} not found`);
+      return null;
+    }
+    
+    // Update the note
+    this.notes[noteIndex] = {
+      ...this.notes[noteIndex],
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    
+    this.saveNotes();
+    return this.notes[noteIndex];
+  }
+
+  // Delete a note
+  deleteNote(id) {
+    const initialLength = this.notes.length;
+    this.notes = this.notes.filter(note => note.id !== id);
+    
+    if (this.notes.length < initialLength) {
+      this.saveNotes();
+      return true;
+    } else {
+      console.log(`Note with ID ${id} not found`);
+      return false;
+    }
+  }
+
+  // Search notes by title or content
+  searchNotes(query) {
+    query = query.toLowerCase();
+    return this.notes.filter(note => 
+      note.title.toLowerCase().includes(query) || 
+      note.content.toLowerCase().includes(query)
+    );
+  }
 }
 
-/**
- * Lista todas las notas guardadas.
- */
-function listarNotas() 
-{
-  if (fs.existsSync(filePath)) {
-    // PISTA: Debes leer y parsear el contenido del archivo.
-    // COMPLETAR: Usa fs.readFileSync para leer y JSON.parse para convertir el contenido.
-    fs.readFileSync( filePath, 'utf8', (error, datos) => {
-      console.log(datos);
-    } );
-  } else {
-    console.log('No hay notas guardadas.');
-  }
+// Export the class for use in other files
+module.exports = NoteTaking;
+
+// Example usage if run directly
+if (require.main === module) {
+  const noteApp = new NoteTaking();
+  
+  // Example: Add a new note
+  const newNote = noteApp.addNote(
+    'My First Note', 
+    'This is the content of my first note.'
+  );
+  
+  console.log('Added Note:', newNote);
+  
+  // Example: List all notes
+  console.log('All Notes:', noteApp.getAllNotes());
 }
-
-/**
- * Elimina una nota por su título.
- * @param {string} titulo - El título de la nota a eliminar.
- */
-function eliminarNota(titulo) 
-{
-  if (fs.existsSync(filePath)) {
-    // PISTA: Primero lee todas las notas.
-    // COMPLETAR: Usa fs.readFileSync para leer el archivo.
-
-    // PISTA: Filtra las notas y elimina la que coincida con el título.
-    // COMPLETAR: Usa Array.filter para obtener las notas restantes.
-
-    // PISTA: Sobrescribe el archivo con las notas actualizadas.
-    // COMPLETAR: Usa fs.writeFileSync.
-    console.log(`Nota con título "${titulo}" eliminada.`);
-  } else {
-    console.log('No hay notas para eliminar.');
-  }
-}
-
-// Ejecución de ejemplo
-agregarNota('Compras', 'Comprar leche y pan.');
-listarNotas();
-eliminarNota('Compras');
-
-// ### Pistas para Resolver el Proyecto ###
-// Formato del archivo `notas.json`:
-[
-  { "titulo": "Compras", "contenido": "Comprar leche y pan." },
-  { "titulo": "Trabajo", "contenido": "Terminar reporte semanal." }
-]
-
-// #### Operaciones clave: ###
-// 1. Para leer las notas existentes:
-const data = fs.readFileSync(filePath, 'utf8');
-const notas = JSON.parse(data);
-
-// 2. Para guardar las notas actualizadas:
-fs.writeFileSync(filePath, JSON.stringify(notas, null, 2));
-
-// 3. Filtrar notas para eliminar:
-const notasRestantes = notas.filter((nota) => nota.titulo !== titulo);
